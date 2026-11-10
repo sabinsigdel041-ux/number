@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Number Rings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070718; --panel:#0b0b26; --line:#1d1d48; --ink:#f1f1fa; --dim:#6c6c9a; --red:#ff2b3d; --ok:#6ee7a8;
+  color-scheme:dark; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Outfit",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center}
+main{width:100%;max-width:720px;padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;align-items:center;gap:14px}
+.timer{font-variant-numeric:tabular-nums;font-weight:600;font-size:24px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;padding:6px 16px;min-width:140px;text-align:center}
+.timer.fin{color:var(--ok);border-color:var(--ok)}
+.timer.low{color:var(--red);border-color:var(--red)}
+.meta{display:flex;gap:18px;font-size:16px;color:var(--dim);min-height:22px}
+.meta b{color:var(--ink);font-weight:700}
+.dial{position:relative;width:min(100%,62vh);width:min(100%,62dvh);aspect-ratio:1;background:var(--panel);border-radius:14px;overflow:hidden;
+  user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.dial svg{position:absolute;inset:0;width:100%;height:100%}
+.n{position:absolute;left:50%;top:50%;border:0;background:none;color:var(--ink);padding:9px;margin:0;
+  font:600 var(--fs,16px)/1 "Outfit",system-ui,sans-serif;cursor:pointer;touch-action:manipulation;will-change:transform}
+.n.start{color:var(--red);font-weight:700;text-shadow:0 0 12px rgba(255,43,61,.65)}
+.box{width:100%;max-height:110px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;font-weight:600;font-size:15px}
+.box span{background:#17173f;border-radius:6px;padding:3px 9px;font-variant-numeric:tabular-nums}
+.box .empty{background:none;padding:3px 0;color:var(--dim);font-weight:500}
+.n.miss{color:#ffb3ba}
+.n:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:center;width:100%}
+label{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--dim)}
+input[type=number]{width:76px;font:600 16px inherit;font-family:inherit;color:var(--ink);background:var(--panel);
+  border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+input[type=range]{width:130px;accent-color:var(--red);height:38px;margin:0}
+button.go{font:600 16px inherit;font-family:inherit;color:var(--ink);background:#17173f;border:1px solid var(--line);
+  border-radius:8px;padding:10px 18px;height:40px;cursor:pointer}
+button.go:active{background:#202056}
+#msg{min-height:20px;margin:0;font-size:14px;color:#ffb3ba;text-align:center}
+@media (min-width:700px) and (orientation:landscape){
+  main{max-width:1200px;display:grid;grid-template-columns:minmax(0,1fr) 320px;grid-template-rows:auto auto auto auto auto 1fr;column-gap:28px;row-gap:12px;align-content:center;align-items:start;min-height:100vh;min-height:100dvh}
+  .dial{grid-column:1;grid-row:1/7;justify-self:center;width:min(100%,calc(100vh - 32px));width:min(100%,calc(100dvh - 32px))}
+  .timer,.meta,.box,.controls,#msg{grid-column:2;justify-self:stretch}
+  .timer{grid-row:1;justify-self:center}
+  .meta{grid-row:2;justify-content:center}
+  .box{grid-row:3;max-height:200px}
+  .controls{grid-row:4;justify-content:flex-start}
+  #msg{grid-row:5}
+}
+@media (max-width:360px){
+  input[type=number]{width:64px}
+  input[type=range]{width:110px}
+  .timer{font-size:20px;min-width:120px}
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="timer" id="t">00:00.00</div>
+  <div class="meta" id="meta"></div>
+  <div class="dial" id="dial" aria-label="Rotating rings of numbers"><svg id="rings" viewBox="-50 -50 100 100" aria-hidden="true"></svg></div>
+  <div class="box" id="box" aria-label="Numbers found"></div>
+  <section class="controls">
+    <label>From <input id="a" type="number" inputmode="numeric" value="1"></label>
+    <label>To <input id="b" type="number" inputmode="numeric" value="40"></label>
+    <label>Time (sec, 0 = no limit) <input id="c" type="number" inputmode="numeric" min="0" value="0"></label>
+    <label>Speed <input id="s" type="range" min="0" max="3" step="0.1" value="1"></label>
+    <button class="go" id="go" type="button">Shuffle</button>
+  </section>
+  <p id="msg" role="status"></p>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const dial = $('dial'), svg = $('rings');
+let items = [], rings = [], fr = [], size = 0, t0 = 0, N = 0, start = 1, next = 0, misses = 0, done = false, finalT = 0, limit = 0, timeUp = false;
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) $('s').value = 0.3;
+
+const pad = (n, l = 2) => String(n).padStart(l, '0');
+const fmt = s => pad(Math.floor(s / 60)) + ':' + pad(Math.floor(s % 60)) + '.' + pad(Math.floor((s * 100) % 100));
+
+function build() {
+  const a = parseInt($('a').value, 10), b = parseInt($('b').value, 10);
+  if (!Number.isInteger(a) || !Number.isInteger(b) || b <= a) { $('msg').textContent = 'Set “To” higher than “From”.'; return; }
+  if (b - a + 1 > 100) { $('msg').textContent = 'Use at most 100 numbers: “To” can be at most “From” + 99.'; return; }
+  $('msg').textContent = '';
+  const c = parseInt($('c').value, 10);
+  if (!Number.isInteger(c) || c < 0) { $('msg').textContent = 'Set time to 0 or more seconds. 0 means no limit.'; return; }
+  limit = c; timeUp = false;
+  start = a; N = b - a + 1; next = 0; misses = 0; done = false;
+
+  // random order
+  const nums = Array.from({ length: N }, (_, i) => a + i);
+  for (let i = N - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [nums[i], nums[j]] = [nums[j], nums[i]]; }
+
+  // rings: more numbers on bigger rings
+  const R = Math.max(1, Math.min(6, Math.round(Math.sqrt(N / 2.5))));
+  fr = Array.from({ length: R }, (_, i) => 0.86 * (R - i) / R);
+  const sum = fr.reduce((p, c) => p + c, 0);
+  const counts = fr.map(r => Math.max(1, Math.round(N * r / sum)));
+  counts[0] += N - counts.reduce((p, c) => p + c, 0);
+  rings = counts.map((n, i) => ({ n, a: Math.random() * 360, v: (i % 2 ? 1 : -1) * (4 + i * 3.5), px: 0 }));
+
+  dial.querySelectorAll('.n').forEach(e => e.remove());
+  svg.innerHTML = fr.map(r => `<circle r="${(r * 50).toFixed(2)}" fill="none" stroke="#1d1d48" stroke-width=".25"/>`).join('');
+  items = [];
+  let idx = 0;
+  rings.forEach((r, ri) => {
+    for (let k = 0; k < r.n; k++) {
+      const el = document.createElement('button');
+      el.type = 'button'; el.className = 'n'; el.textContent = nums[idx]; el.dataset.v = nums[idx++];
+      dial.appendChild(el);
+      items.push({ el, r: ri, k });
+    }
+  });
+  t0 = performance.now();
+  $('t').classList.remove('fin', 'low');
+  resetBox(); layout(); markNext(); updateMeta();
+}
+
+function layout() {
+  size = dial.clientWidth;
+  dial.style.setProperty('--fs', Math.max(11, size * (N > 60 ? 0.04 : 0.05)) + 'px');
+  rings.forEach((r, i) => r.px = fr[i] * size / 2);
+}
+
+function addBox(v) {
+  const box = $('box'), e = box.querySelector('.empty');
+  if (e) e.remove();
+  const s = document.createElement('span');
+  s.textContent = v; box.appendChild(s); box.scrollTop = box.scrollHeight;
+}
+function resetBox() { $('box').innerHTML = '<span class="empty">Numbers you tap appear here</span>'; }
+
+function markNext() {
+  items.forEach(it => {
+    const v = +it.el.dataset.v - start;
+    it.el.classList.toggle('start', v === 0);
+  });
+}
+
+function updateMeta() {
+  const m = `<span>${misses} ${misses === 1 ? 'miss' : 'misses'}</span>`;
+  $('meta').innerHTML = timeUp ? `<span>Time’s up: ${next} of ${N} found</span>` + m
+    : done ? `<span>All ${N} found</span>` + m
+    : `<span>Find <b>${start + next}</b></span>` + m;
+}
+
+dial.addEventListener('pointerdown', e => {
+  const b = e.target.closest('.n');
+  if (!b || done) return;
+  const v = +b.dataset.v;
+  if (v < start + next) return;
+  if (v === start + next) {
+    addBox(v);
+    next++;
+    if (next === N) { done = true; finalT = (performance.now() - t0) / 1000; $('t').textContent = fmt(finalT); $('t').classList.remove('low'); $('t').classList.add('fin'); }
+    markNext(); updateMeta();
+  } else {
+    misses++; updateMeta();
+    b.classList.add('miss'); setTimeout(() => b.classList.remove('miss'), 220);
+  }
+});
+
+function tick(now) {
+  if (!done) {
+    const el = (now - t0) / 1000;
+    if (limit > 0) {
+      const left = limit - el;
+      if (left <= 0) { done = timeUp = true; $('t').textContent = fmt(0); $('t').classList.add('low'); markNext(); updateMeta(); }
+      else { $('t').textContent = fmt(left); $('t').classList.toggle('low', left <= 10); }
+    } else $('t').textContent = fmt(el);
+  }
+  const m = +$('s').value, dt = Math.min(0.1, (now - (tick.last || now)) / 1000);
+  tick.last = now;
+  for (const r of rings) r.a += r.v * m * dt;
+  for (const it of items) {
+    const r = rings[it.r], th = (r.a + it.k * 360 / r.n) * Math.PI / 180;
+    it.el.style.transform = `translate(-50%,-50%) translate(${(Math.cos(th) * r.px).toFixed(1)}px,${(Math.sin(th) * r.px).toFixed(1)}px)`;
+  }
+  requestAnimationFrame(tick);
+}
+
+$('go').addEventListener('click', build);
+$('a').addEventListener('change', build);
+$('b').addEventListener('change', build);
+$('c').addEventListener('change', build);
+new ResizeObserver(layout).observe(dial);
+build();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
